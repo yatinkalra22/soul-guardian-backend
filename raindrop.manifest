@@ -1,0 +1,14 @@
+application "soul_guardian_backend" {
+
+  // === Databases ===
+  smartsql "smart_db" {}
+
+  service "api" {
+    visibility = "public"
+
+    domain {
+      cname = "api-soul-guardian"
+    }
+  }
+}
+
