@@ -3,3 +3,15 @@ dist/
 
 .raindrop
 .gemini
+.env
+.dev.vars
+wrangler.toml
+.wrangler/
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db

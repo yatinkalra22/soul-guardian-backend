@@ -1,14 +1,20 @@
 application "soul_guardian_backend" {
-
   // === Databases ===
   smartsql "smart_db" {}
 
+  // === Storage ===
+  smartbucket "avatar_bucket" {}
+
+  // === Services ===
   service "api" {
     visibility = "public"
 
     domain {
       cname = "api-soul-guardian"
     }
+
+    env "WORKOS_CLIENT_ID" {}
+    env "WORKOS_CLIENT_SECRET" {}
+    env "WORKOS_COOKIE_PASSWORD" {}
   }
 }
-

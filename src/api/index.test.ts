@@ -1,66 +1,40 @@
-import { expect, test, describe } from 'vitest';
-
-// Example Hono service tests
-// Uncomment these tests once you have implemented your service logic
-
-/*
-import Service from './index';
+import { describe, it, expect } from 'vitest';
+import { app } from './index';
 import { Env } from './raindrop.gen';
 
-describe('Service', () => {
-  test('health check endpoint', async () => {
-    const service = new Service();
-    const env = {} as Env;
-    const request = new Request('http://localhost/health');
-    const response = await service.fetch(request, env);
-    
-    expect(response.status).toBe(200);
-    const body = await response.json();
-    expect(body.status).toBe('ok');
-    expect(body.timestamp).toBeDefined();
+describe('Hello API', () => {
+  const env = {} as Env;
+
+  it('should return 200 for health check', async () => {
+    const req = new Request('http://localhost/health');
+    const res = await app.fetch(req, env);
+    expect(res.status).toBe(200);
   });
 
-  test('hello endpoint', async () => {
-    const service = new Service();
-    const env = {} as Env;
-    const request = new Request('http://localhost/api/hello');
-    const response = await service.fetch(request, env);
-    
-    expect(response.status).toBe(200);
-    const body = await response.json();
-    expect(body.message).toBe('Hello from Hono!');
+  it('should return hello message', async () => {
+    const req = new Request('http://localhost/api/hello');
+    const res = await app.fetch(req, env);
+    expect(res.status).toBe(200);
+    const json = await res.json() as any;
+    expect(json.message).toBe('Hello from Hono!');
   });
 
-  test('hello with name parameter', async () => {
-    const service = new Service();
-    const env = {} as Env;
-    const request = new Request('http://localhost/api/hello/world');
-    const response = await service.fetch(request, env);
-    
-    expect(response.status).toBe(200);
-    const body = await response.json();
-    expect(body.message).toBe('Hello, world!');
+  it('should return hello message with name', async () => {
+    const req = new Request('http://localhost/api/hello/John');
+    const res = await app.fetch(req, env);
+    expect(res.status).toBe(200);
+    const json = await res.json() as any;
+    expect(json.message).toBe('Hello, John!');
   });
 
-  test('echo endpoint', async () => {
-    const service = new Service();
-    const env = {} as Env;
-    const testData = { message: 'test' };
-    const request = new Request('http://localhost/api/echo', {
+  it('should echo post data', async () => {
+    const req = new Request('http://localhost/api/echo', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(testData)
+      body: JSON.stringify({ foo: 'bar' }),
     });
-    const response = await service.fetch(request, env);
-    
-    expect(response.status).toBe(200);
-    const body = await response.json();
-    expect(body.received).toEqual(testData);
+    const res = await app.fetch(req, env);
+    expect(res.status).toBe(200);
+    const json = await res.json() as any;
+    expect(json.received).toEqual({ foo: 'bar' });
   });
-});
-*/
-
-// Basic test to ensure test setup works
-test('test setup is working', async () => {
-  expect(true).toBe(true);
 });

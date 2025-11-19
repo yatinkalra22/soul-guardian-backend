@@ -1,14 +1,10 @@
-import { Service } from '@liquidmetal-ai/raindrop-framework';
 import { Hono } from 'hono';
-import { cors } from 'hono/cors';
 import { logger } from 'hono/logger';
-import { QueueSendOptions } from '@liquidmetal-ai/raindrop-framework';
-import { KvCachePutOptions, KvCacheGetOptions } from '@liquidmetal-ai/raindrop-framework';
-import { BucketPutOptions, BucketListOptions } from '@liquidmetal-ai/raindrop-framework';
 import { Env } from './raindrop.gen';
+import avatarRoutes from './avatar';
 
 // Create Hono app with middleware
-const app = new Hono<{ Bindings: Env }>();
+export const app: Hono<{ Bindings: Env }> = new Hono<{ Bindings: Env }>();
 
 // Add request logging middleware
 app.use('*', logger());
@@ -17,6 +13,10 @@ app.use('*', logger());
 app.get('/health', (c) => {
   return c.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
+
+// === Avatar Routes ===
+app.route('/api/avatars', avatarRoutes);
+
 
 // === Basic API Routes ===
 app.get('/api/hello', (c) => {
@@ -455,8 +455,5 @@ app.get('/api/config', (c) => {
   });
 });
 
-export default class extends Service<Env> {
-  async fetch(request: Request): Promise<Response> {
-    return app.fetch(request, this.env);
-  }
-}
+export default app;
+
