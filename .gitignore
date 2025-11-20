@@ -1,9 +1,13 @@
 node_modules/
 dist/
 
+# Raindrop
 .raindrop
 .gemini
+
+# Environment files with secrets
 .env
+.env.raindrop
 .dev.vars
 wrangler.toml
 .wrangler/

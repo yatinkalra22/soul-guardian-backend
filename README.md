@@ -24,41 +24,39 @@ Avatar management backend built with Raindrop Framework, SmartSQL, and SmartBuck
    npm install
    ```
 
-2. **Configure environment variables:**
+2. **Set up environment variables:**
    ```bash
+   # Copy the Raindrop env template
+   cp .env.raindrop.example .env.raindrop
+   # Edit .env.raindrop with your WorkOS credentials
+
+   # Also copy for local development
    cp .env.example .env
    # Edit .env with your WorkOS credentials
    ```
 
-3. **Set up Raindrop environment:**
-   ```bash
-   # Set environment variables in Raindrop
-   raindrop build env set api:env:WORKOS_CLIENT_ID "your_client_id"
-   raindrop build env set api:env:WORKOS_CLIENT_SECRET "your_api_key"
-   raindrop build env set api:env:WORKOS_COOKIE_PASSWORD "your_password"
-   ```
+   **Note:** Environment variables are automatically set when you run `npm run start` or `npm run deploy`
 
 ## Development
 
-### Local Development (Mocked Services)
+### Local Development (Connected to Remote Raindrop Services)
 
-Run a local dev server with mocked database and storage:
+Run the server locally but connected to **hosted Raindrop database and storage**:
 
 ```bash
 npm run dev
 ```
 
 The server runs at `http://localhost:3000` with:
-- ✅ No authentication required
-- ✅ Mocked database responses
-- ✅ Logged (not stored) file uploads
+- ✅ Remote SmartSQL database (Raindrop hosted)
+- ✅ Remote SmartBucket storage (Raindrop hosted)
+- ✅ Simple token-based authentication for local dev
+- ✅ Production API code running locally
 
-### Remote Development (Real Services)
-
-Deploy to Raindrop sandbox with real database and storage:
-
+**Authentication for local dev:**
+Use any Bearer token in the Authorization header. The user ID will be extracted from the token:
 ```bash
-npm run dev:remote
+curl -H "Authorization: Bearer user123" http://localhost:3000/api/avatars
 ```
 
 ### Watch Mode
@@ -171,16 +169,16 @@ npm run test:watch
 
 | Command | Description |
 |---------|-------------|
-| `npm run dev` | Local development (mocked) |
+| `npm run dev` | Local server connected to remote Raindrop services |
 | `npm run dev:watch` | Local with auto-restart |
-| `npm run dev:remote` | Deploy to Raindrop sandbox |
-| `npm run build` | Build TypeScript |
+| `npm run build` | Validate Raindrop manifest and build |
 | `npm start` | Deploy and start on Raindrop |
 | `npm run deploy` | Deploy to Raindrop |
 | `npm run status` | Check deployment status |
 | `npm run logs` | View live logs |
 | `npm run url` | Get API URL |
 | `npm run stop` | Stop deployment |
+| `npm test` | Run tests |
 
 ## Security Notes
 

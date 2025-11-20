@@ -16,7 +16,7 @@
     "module": "es2022",
     "moduleDetection": "force",
     "moduleResolution": "Bundler",
-    "noEmit": true,
+    "noEmit": false,
     "noUncheckedIndexedAccess": true,
     "outDir": "dist",
     "resolveJsonModule": true,
@@ -24,5 +24,5 @@
     "strict": true,
     "target": "es2022"
   },
-  "exclude": ["test"]
+  "exclude": ["test", "src/server.ts", "src/remote-clients.ts", "**/*.test.ts", "dist", "node_modules"]
 }

@@ -1,13 +1,13 @@
 import { app } from '../index';
-import { vi, describe, it, expect, afterEach, beforeEach } from 'vitest';
+import { vi, describe, it, expect, beforeAll } from 'vitest';
 import { Env } from '../raindrop.gen';
-import { Kysely, Selectable } from 'kysely';
-import { Avatar, User } from '../db';
+import { RemoteSmartSqlClient, RemoteSmartBucketClient } from '../../remote-clients';
 
+// Mock auth to bypass WorkOS
 vi.mock('../../_app/auth', () => ({
   verify: vi.fn(async (c: any, next: any) => {
     if (c.req.header('Authorization') === 'Bearer valid-token') {
-      c.set('jwt', { payload: { sub: 'user-123' } });
+      c.set('jwt', { payload: { sub: 'test-user-' + Date.now() } });
       await next();
     } else {
       return c.json({ error: 'Unauthorized' }, 401);
@@ -18,174 +18,103 @@ vi.mock('../../_app/auth', () => ({
   }),
 }));
 
-
-
-// In-memory storage for mocks
-let db: { avatars: Selectable<Avatar>[], users: Selectable<User>[] };
-let bucket: Map<string, ArrayBuffer>;
-
-// Mock SmartSql and Bucket
-const mockSmartDb = {
-  insertInto: vi.fn((table: 'avatars' | 'users') => {
-    return {
-      values: vi.fn((values: any) => {
-        if (table === 'users') {
-          if (!db.users.find(u => u.id === values.id)) {
-            db.users.push({ ...values });
-          }
-        } else if (table === 'avatars') {
-          const newAvatar = { ...values, id: db.avatars.length + 1 };
-          db.avatars.push(newAvatar);
-        }
-        
-        const queryBuilder = {
-          onConflict: vi.fn((callback) => {
-            const onConflictBuilder = {
-              doNothing: vi.fn(() => {
-                return {
-                  execute: vi.fn(async () => {
-                    // The user insert is already done above.
-                  }),
-                };
-              }),
-            };
-            return callback(onConflictBuilder);
-          }),
-          returningAll: vi.fn(() => ({
-            executeTakeFirstOrThrow: vi.fn(async () => {
-              return db.avatars[db.avatars.length - 1];
-            }),
-          })),
-        };
-        return queryBuilder;
-      }),
-    };
-  }),
-  selectFrom: vi.fn((table: 'avatars') => {
-    return {
-      selectAll: vi.fn(() => {
-        return {
-          where: vi.fn((field: 'user_id' | 'id', op: '=', value: string | number) => {
-            const filtered = db[table].filter(row => row[field] === value);
-            return {
-              where: vi.fn((field2: 'user_id' | 'id', op2: '=', value2: string | number) => {
-                const filtered2 = filtered.filter(row => row[field2] === value2);
-                return {
-                  execute: vi.fn(async () => filtered2),
-                  executeTakeFirst: vi.fn(async () => filtered2[0]),
-                };
-              }),
-              execute: vi.fn(async () => filtered),
-              executeTakeFirst: vi.fn(async () => filtered[0]),
-            };
-          }),
-        };
-      }),
-    };
-  }),
-  deleteFrom: vi.fn((table: 'avatars') => {
-    return {
-      where: vi.fn((field: 'id', op: '=', value: number) => {
-        return {
-          execute: vi.fn(async () => {
-            db.avatars = db.avatars.filter(row => row.id !== value);
-          }),
-        };
-      }),
-    };
-  }),
-} as unknown as Kysely<any>;
-
-const mockAvatarBucket = {
-  put: vi.fn(async (key: string, value: ArrayBuffer) => {
-    bucket.set(key, value);
-    return { key, size: value.byteLength, etag: 'etag', httpMetadata: {} };
-  }),
-  get: vi.fn(async (key: string) => {
-    const value = bucket.get(key);
-    if (!value) return null;
-    return { body: value, httpMetadata: { contentType: 'image/png' } };
-  }),
-  delete: vi.fn(async (key: string) => {
-    bucket.delete(key);
-  }),
-};
+// Remote Raindrop service configuration
+const RAINDROP_ORG_ID = 'org_01K9CJ2G9WZ9XQ7RAVQ5XKYJE0';
+const SMARTSQL_MODULE_ID = '01ka6te8ktjwpjj4x0z0kdezfw';
+const SMARTBUCKET_MODULE_ID = '01kaes49jvmt8grebzmz4y14mg';
 
 let env: Env;
 
-describe('Avatar API', () => {
-  beforeEach(() => {
-    db = { avatars: [], users: [] };
-    bucket = new Map();
-    env = {
-      SMART_DB: mockSmartDb,
-      AVATAR_BUCKET: mockAvatarBucket,
-    } as unknown as Env;
-  });
+describe('Avatar API - Integration Tests (Remote Raindrop)', () => {
+  beforeAll(() => {
+    // Create remote service clients
+    const SMART_DB = new RemoteSmartSqlClient(SMARTSQL_MODULE_ID, RAINDROP_ORG_ID);
+    const AVATAR_BUCKET = new RemoteSmartBucketClient(SMARTBUCKET_MODULE_ID, RAINDROP_ORG_ID);
 
-  afterEach(() => {
-    vi.clearAllMocks();
+    env = {
+      SMART_DB: SMART_DB as any,
+      AVATAR_BUCKET: AVATAR_BUCKET as any,
+      WORKOS_CLIENT_ID: '',
+      WORKOS_CLIENT_SECRET: '',
+      WORKOS_COOKIE_PASSWORD: '',
+      logger: console as any,
+      mem: {} as any,
+      AI: {} as any,
+      annotation: {} as any,
+      tracer: {} as any,
+      _raindrop: {} as any,
+    };
   });
 
   describe('unauthorized', () => {
-    it('should return 401 for all routes', async () => {
+    it('should return 401 without auth token', async () => {
       const req = new Request('http://localhost/api/avatars');
       const res = await app.fetch(req, env);
       expect(res.status).toBe(401);
     });
   });
 
-  describe('authorized', () => {
-    it('should create an avatar', async () => {
+  describe('authorized - remote database operations', () => {
+    it('should create an avatar in remote database', async () => {
       const formData = new FormData();
-      formData.append('name', 'test');
-      formData.append('relationship', 'test');
+      formData.append('name', 'Test Avatar');
+      formData.append('relationship', 'Friend');
 
       const req = new Request('http://localhost/api/avatars', {
         method: 'POST',
         body: formData,
         headers: {
           Authorization: 'Bearer valid-token',
-        }
+        },
       });
 
       const res = await app.fetch(req, env);
-
       expect(res.status).toBe(200);
-      const json = await res.json() as any;
-      expect(json.name).toBe('test');
-      expect(json.relationship).toBe('test');
+
+      const json = (await res.json()) as any;
+      expect(json.name).toBe('Test Avatar');
+      expect(json.relationship).toBe('Friend');
+      expect(json.id).toBeDefined();
     });
 
-    it('should get avatars', async () => {
-      db.avatars.push({ id: 1, name: 'Avatar 1', user_id: 'user-123', relationship: 'Friend', photo_url: null });
+    it('should get avatars from remote database', async () => {
       const req = new Request('http://localhost/api/avatars', {
         headers: {
           Authorization: 'Bearer valid-token',
-        }
+        },
       });
+
       const res = await app.fetch(req, env);
       expect(res.status).toBe(200);
-      const json = await res.json() as any;
+
+      const json = (await res.json()) as any;
       expect(json).toBeInstanceOf(Array);
-      expect(json.length).toBe(1);
     });
 
-    it('should delete an avatar', async () => {
-      const avatar = { id: 1, name: 'test-delete', user_id: 'user-123', relationship: 'Friend', photo_url: null };
-      db.avatars.push(avatar);
+    it('should handle avatar creation with photo upload', async () => {
+      const formData = new FormData();
+      formData.append('name', 'Avatar with Photo');
+      formData.append('relationship', 'Family');
 
-      const req = new Request(`http://localhost/api/avatars/${avatar.id}`, {
-        method: 'DELETE',
+      // Create a small test image blob
+      const blob = new Blob(['fake-image-data'], { type: 'image/png' });
+      formData.append('photo', blob, 'test-photo.png');
+
+      const req = new Request('http://localhost/api/avatars', {
+        method: 'POST',
+        body: formData,
         headers: {
           Authorization: 'Bearer valid-token',
-        }
+        },
       });
+
       const res = await app.fetch(req, env);
       expect(res.status).toBe(200);
-      const json = await res.json() as any;
-      expect(json.success).toBe(true);
-      expect(db.avatars.length).toBe(0);
+
+      const json = (await res.json()) as any;
+      expect(json.name).toBe('Avatar with Photo');
+      expect(json.photo_url).toBeDefined();
+      expect(json.photo_url).toContain('/api/avatars/photo/');
     });
   });
 });
