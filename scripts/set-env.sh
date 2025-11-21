@@ -18,11 +18,31 @@ echo "📝 Reading environment variables from $ENV_FILE..."
 export $(cat "$ENV_FILE" | grep -v '^#' | xargs)
 
 echo "🔧 Setting Raindrop environment variables..."
+echo ""
 
-raindrop build env set api:env:WORKOS_CLIENT_ID "$WORKOS_CLIENT_ID"
-raindrop build env set api:env:WORKOS_CLIENT_SECRET "$WORKOS_CLIENT_SECRET"
-raindrop build env set api:env:WORKOS_COOKIE_PASSWORD "$WORKOS_COOKIE_PASSWORD"
+# Check if variables are set
+if [ -z "$WORKOS_CLIENT_ID" ] || [ -z "$WORKOS_CLIENT_SECRET" ] || [ -z "$WORKOS_COOKIE_PASSWORD" ]; then
+    echo "❌ Error: Missing required environment variables in $ENV_FILE"
+    echo "Required: WORKOS_CLIENT_ID, WORKOS_CLIENT_SECRET, WORKOS_COOKIE_PASSWORD"
+    exit 1
+fi
 
+echo "   Setting WORKOS_CLIENT_ID..."
+raindrop build env set api:env:WORKOS_CLIENT_ID "$WORKOS_CLIENT_ID" > /dev/null
+
+echo "   Setting WORKOS_CLIENT_SECRET..."
+raindrop build env set api:env:WORKOS_CLIENT_SECRET "$WORKOS_CLIENT_SECRET" > /dev/null
+
+echo "   Setting WORKOS_COOKIE_PASSWORD..."
+raindrop build env set api:env:WORKOS_COOKIE_PASSWORD "$WORKOS_COOKIE_PASSWORD" > /dev/null
+
+echo "   Setting ALLOWED_ORIGINS..."
+raindrop build env set api:env:ALLOWED_ORIGINS "$ALLOWED_ORIGINS" > /dev/null
+
+echo ""
 echo "✅ Environment variables set successfully!"
 echo ""
-echo "You can now deploy with: npm run start"
+echo "💡 Next steps:"
+echo "   • First deployment:  npm run start"
+echo "   • Update existing:   npm run deploy"
+echo "   • Full redeploy:     npm run restart"

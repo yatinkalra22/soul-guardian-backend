@@ -39,51 +39,58 @@ Avatar management backend built with Raindrop Framework, SmartSQL, and SmartBuck
 
 ## Development
 
-### Local Development (Connected to Remote Raindrop Services)
+### Local Development
 
-Run the server locally but connected to **hosted Raindrop database and storage**:
+Run the development server with hot-reload:
 
 ```bash
 npm run dev
 ```
 
-The server runs at `http://localhost:3000` with:
+Or run without watch mode:
+
+```bash
+npm start
+```
+
+The server runs at `http://localhost:4000` (or set `PORT` in `.env`) with:
 - ✅ Remote SmartSQL database (Raindrop hosted)
 - ✅ Remote SmartBucket storage (Raindrop hosted)
 - ✅ Simple token-based authentication for local dev
 - ✅ Production API code running locally
 
-**Authentication for local dev:**
-Use any Bearer token in the Authorization header. The user ID will be extracted from the token:
+**Testing locally:**
 ```bash
-curl -H "Authorization: Bearer user123" http://localhost:3000/api/avatars
+# The local server uses mock database and storage
+curl http://localhost:4000/health
+curl http://localhost:4000/auth/exchange -X POST -H "Content-Type: application/json" -d '{"code":"test"}'
 ```
 
-### Watch Mode
+## Deployment to Raindrop
 
-Auto-restart on file changes:
-
+### First-Time Deployment
 ```bash
-npm run dev:watch
+npm run deploy:start
 ```
 
-## Deployment
-
+### Update Existing Deployment
 ```bash
-# Deploy to Raindrop
 npm run deploy
+```
 
-# Deploy and start
-npm start
+### Other Deployment Commands
+```bash
+# Stop deployment
+npm run deploy:stop
 
-# Check status
-npm run status
+# Check deployment status
+npm run deploy:status
 
 # View logs
-npm run logs
+npm run deploy:logs
 
-# Get API URL
-npm run url
+# Get deployment URL
+npm run deploy:url
 ```
 
 ## API Endpoints

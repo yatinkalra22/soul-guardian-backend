@@ -121,7 +121,7 @@ const env: Env = {
   SMART_DB: mockSmartDb,
   AVATAR_BUCKET: mockAvatarBucket,
   WORKOS_CLIENT_ID: process.env.WORKOS_CLIENT_ID || '',
-  WORKOS_CLIENT_SECRET: process.env.WORKOS_API_KEY || process.env.WORKOS_CLIENT_SECRET || '',
+  WORKOS_CLIENT_SECRET: process.env.WORKOS_CLIENT_SECRET || '',
   WORKOS_COOKIE_PASSWORD: process.env.WORKOS_COOKIE_PASSWORD || '',
   logger: console as any,
   mem: {} as any,
@@ -136,7 +136,7 @@ if (!env.WORKOS_CLIENT_ID || !env.WORKOS_CLIENT_SECRET || !env.WORKOS_COOKIE_PAS
   console.error('❌ Missing WorkOS environment variables!');
   console.error('   Required in .env file:');
   console.error('   - WORKOS_CLIENT_ID');
-  console.error('   - WORKOS_API_KEY (or WORKOS_CLIENT_SECRET)');
+  console.error('   - WORKOS_CLIENT_SECRET');
   console.error('   - WORKOS_COOKIE_PASSWORD');
   process.exit(1);
 }
