@@ -13,6 +13,9 @@ export interface Database {
 
 export interface UserTable {
   id: ColumnType<string, string, never>;
+  email: ColumnType<string | null, string | null, string | null>;
+  first_name: ColumnType<string | null, string | null, string | null>;
+  last_name: ColumnType<string | null, string | null, string | null>;
 }
 
 export interface AvatarTable {

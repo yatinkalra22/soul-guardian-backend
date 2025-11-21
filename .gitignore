@@ -15,7 +15,11 @@ wrangler.toml
 # Logs
 *.log
 npm-debug.log*
+deploy.log
 
 # OS
 .DS_Store
 Thumbs.db
+
+# Claude
+.claude/

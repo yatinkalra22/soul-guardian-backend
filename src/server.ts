@@ -4,11 +4,12 @@
  * For real testing, deploy to Raindrop with: npm run start
  */
 
+import 'dotenv/config';
 import { serve } from '@hono/node-server';
 import { app } from './api/index';
 import type { Env } from './api/raindrop.gen';
 
-const port = 3000;
+const port = parseInt(process.env.PORT || '4000', 10);
 
 console.log(`🚀 Starting local dev server on http://localhost:${port}`);
 console.log(`⚠️  Using MOCKED database and storage`);
@@ -120,7 +121,7 @@ const env: Env = {
   SMART_DB: mockSmartDb,
   AVATAR_BUCKET: mockAvatarBucket,
   WORKOS_CLIENT_ID: process.env.WORKOS_CLIENT_ID || '',
-  WORKOS_CLIENT_SECRET: process.env.WORKOS_CLIENT_SECRET || '',
+  WORKOS_CLIENT_SECRET: process.env.WORKOS_API_KEY || process.env.WORKOS_CLIENT_SECRET || '',
   WORKOS_COOKIE_PASSWORD: process.env.WORKOS_COOKIE_PASSWORD || '',
   logger: console as any,
   mem: {} as any,
@@ -129,6 +130,16 @@ const env: Env = {
   tracer: {} as any,
   _raindrop: {} as any,
 };
+
+// Validate WorkOS environment variables
+if (!env.WORKOS_CLIENT_ID || !env.WORKOS_CLIENT_SECRET || !env.WORKOS_COOKIE_PASSWORD) {
+  console.error('❌ Missing WorkOS environment variables!');
+  console.error('   Required in .env file:');
+  console.error('   - WORKOS_CLIENT_ID');
+  console.error('   - WORKOS_API_KEY (or WORKOS_CLIENT_SECRET)');
+  console.error('   - WORKOS_COOKIE_PASSWORD');
+  process.exit(1);
+}
 
 // Start server
 serve({

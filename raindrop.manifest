@@ -13,8 +13,17 @@ application "soul_guardian_backend" {
       cname = "api-soul-guardian"
     }
 
-    env "WORKOS_CLIENT_ID" {}
-    env "WORKOS_CLIENT_SECRET" {}
-    env "WORKOS_COOKIE_PASSWORD" {}
+    env "WORKOS_CLIENT_ID" {
+      secret = true
+    }
+    env "WORKOS_CLIENT_SECRET" {
+      secret = true
+    }
+    env "WORKOS_COOKIE_PASSWORD" {
+      secret = true
+    }
+    env "ALLOWED_ORIGINS" {
+      secret = false
+    }
   }
 }

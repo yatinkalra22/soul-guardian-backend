@@ -93,13 +93,37 @@ npm run url
 GET /health
 ```
 
+### Authentication
+
+**Callback (called by WorkOS after login/signup):**
+```bash
+GET /api/auth/callback?code={authorization_code}
+```
+Returns user info and access token. Sets HTTP-only session cookie.
+
+**Get Current User:**
+```bash
+GET /api/auth/me
+```
+Uses session cookie or Authorization header.
+
+**Logout:**
+```bash
+POST /api/auth/logout
+```
+Clears session cookie.
+
 ### Avatars
+
+All avatar endpoints require authentication via:
+- **Authorization header:** `Authorization: Bearer {workos_access_token}`, OR
+- **Session cookie:** Automatically set after `/api/auth/callback`
 
 **Create Avatar:**
 ```bash
 POST /api/avatars
 Content-Type: multipart/form-data
-Authorization: Bearer {workos_token}
+Authorization: Bearer {workos_access_token}
 
 Fields:
 - name: string (required)
@@ -107,22 +131,26 @@ Fields:
 - photo: file (optional)
 ```
 
-**Get All Avatars:**
+**Get User's Avatars:**
 ```bash
 GET /api/avatars
-Authorization: Bearer {workos_token}
+Authorization: Bearer {workos_access_token}
 ```
+Returns only the authenticated user's avatars.
 
 **Delete Avatar:**
 ```bash
 DELETE /api/avatars/{id}
-Authorization: Bearer {workos_token}
+Authorization: Bearer {workos_access_token}
 ```
+Can only delete avatars owned by the authenticated user.
 
 **Get Avatar Image:**
 ```bash
 GET /api/avatars/photo/{key}
+Authorization: Bearer {workos_access_token}
 ```
+Can only access photos owned by the authenticated user.
 
 ## Project Structure
 
@@ -146,7 +174,10 @@ GET /api/avatars/photo/{key}
 ## Database Schema
 
 **Users Table:**
-- `id` (TEXT PRIMARY KEY)
+- `id` (TEXT PRIMARY KEY) - WorkOS user ID
+- `email` (TEXT) - User email from WorkOS
+- `first_name` (TEXT) - User first name
+- `last_name` (TEXT) - User last name
 
 **Avatars Table:**
 - `id` (INTEGER PRIMARY KEY AUTOINCREMENT)

@@ -46,11 +46,7 @@ avatarRoutes.post('/', async (c) => {
     return c.json({ error: 'Unauthorized' }, 401);
   }
 
-  // Insert user if not exists
-  await c.env.SMART_DB.executeQuery({
-    sqlQuery: `INSERT OR IGNORE INTO users (id) VALUES ('${userId}')`
-  });
-
+  // User is automatically created/updated by auth middleware
   // Insert avatar and return the created record
   const insertResult = await c.env.SMART_DB.executeQuery({
     sqlQuery: `INSERT INTO avatars (user_id, name, relationship, photo_url)
@@ -79,11 +75,25 @@ avatarRoutes.get('/', async (c) => {
 });
 
 avatarRoutes.get('/photo/:key(*)', async (c) => {
+  const userId = c.get('jwt')?.payload.sub;
+  if (!userId) {
+    return c.json({ error: 'Unauthorized' }, 401);
+  }
+
   const key = c.req.param('key') || '';
+
+  // Validate that the photo belongs to the authenticated user
+  // Photo keys are in format: userId/timestamp-filename.ext
+  const keyUserId = key.split('/')[0];
+  if (keyUserId !== userId) {
+    return c.json({ error: 'Forbidden - You can only access your own photos' }, 403);
+  }
+
   const file = await c.env.AVATAR_BUCKET.get(key);
   if (!file) {
     return c.notFound();
   }
+
   return new Response(file.body, {
     headers: {
       'Content-Type': file.httpMetadata?.contentType || 'application/octet-stream',
