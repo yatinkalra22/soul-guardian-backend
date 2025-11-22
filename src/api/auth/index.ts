@@ -4,16 +4,51 @@ import { WorkOS } from '@workos-inc/node';
 import { Env } from '../raindrop.gen';
 import { createJWT } from '../../utils/jwt';
 
+/**
+ * Authentication Routes with WorkOS Session Management
+ *
+ * AUTHENTICATION FLOW OVERVIEW:
+ *
+ * 1. LOGIN (POST /auth/exchange):
+ *    - Receives OAuth code from frontend after user authenticates with Google/SSO
+ *    - Exchanges code with WorkOS for user data and sealed session
+ *    - Creates JWT token for application auth
+ *    - Sets TWO cookies:
+ *      a) auth_token: JWT for application authorization (24 hours)
+ *      b) wos-session: Encrypted WorkOS session for SSO logout (7 days)
+ *
+ * 2. LOGOUT (POST /auth/logout):
+ *    - Verifies user is authenticated via JWT
+ *    - Clears both auth_token and wos-session cookies
+ *    - Loads the sealed WorkOS session to extract session ID
+ *    - Generates WorkOS logout URL to invalidate SSO session
+ *    - Returns logout URL for frontend to redirect user
+ *
+ * WHY WE USE BOTH JWT AND WORKOS SESSION:
+ * - JWT (auth_token): Fast, stateless auth for API requests
+ * - WorkOS Session (wos-session): Required for proper SSO logout
+ * - Without WorkOS session, users auto-login after logout (bad UX)
+ *
+ * KEY CHANGES MADE (2025):
+ * - Added sealedSession request in authenticateWithCode()
+ * - Store wos-session cookie during login
+ * - Use loadSealedSession() in logout to generate proper logout URL
+ * - Frontend must redirect to workosLogoutUrl to complete SSO logout
+ */
+
 const authRoutes = new Hono<{ Bindings: Env }>();
 
 /**
  * JWT-based auth exchange endpoint - receives code from frontend, exchanges it for JWT cookie
  * This is the PRIMARY auth endpoint following your requirements
  * POST /auth/exchange
+ *
+ * This endpoint now properly integrates with WorkOS session management:
+ * - Sets auth_token cookie (JWT) for application auth
+ * - Sets wos-session cookie (sealed WorkOS session) for WorkOS logout functionality
  */
 authRoutes.post('/exchange', async (c) => {
   const body = await c.req.json();
-  console.log('Received body:', body)
   const code = body.code;
 
   if (!code) {
@@ -26,10 +61,17 @@ authRoutes.post('/exchange', async (c) => {
       apiHostname: 'api.workos.com',
     });
 
-    // Exchange code for WorkOS user profile
-    const { user } = await workos.userManagement.authenticateWithCode({
+    // Exchange code for WorkOS user profile and session
+    // IMPORTANT: We now request a sealed session from WorkOS to enable proper logout functionality
+    // The sealedSession contains the WorkOS session ID needed to generate logout URLs
+    // This ensures users are properly logged out of their SSO provider (Google, etc.)
+    const { user, sealedSession } = await workos.userManagement.authenticateWithCode({
       clientId: c.env.WORKOS_CLIENT_ID,
       code,
+      session: {
+        sealSession: true, // Request WorkOS to seal/encrypt the session for secure cookie storage
+        cookiePassword: c.env.WORKOS_COOKIE_PASSWORD,
+      },
     });
 
     // Ensure user exists in database (upsert)
@@ -66,10 +108,26 @@ authRoutes.post('/exchange', async (c) => {
       maxAge: 60 * 60 * 24, // 24 hours (matching JWT expiry)
     });
 
+    // Set WorkOS session cookie for proper session management
+    // WHY: This cookie is essential for logout functionality
+    // - Contains encrypted WorkOS session data needed to invalidate SSO sessions
+    // - Without this, users would auto-login after logout (bad UX)
+    // - The sealedSession is encrypted by WorkOS and can only be decrypted with WORKOS_COOKIE_PASSWORD
+    if (sealedSession) {
+      setCookie(c, 'wos-session', sealedSession, {
+        httpOnly: true, // Prevent JavaScript access for security
+        secure: isProduction, // HTTPS only in production
+        sameSite: 'Lax',
+        path: '/',
+        maxAge: 60 * 60 * 24 * 7, // 7 days (longer than JWT for session refresh)
+      });
+    }
+
     console.log('Set auth_token cookie:', {
       tokenLength: token.length,
       isProduction,
-      url: c.req.url
+      url: c.req.url,
+      hasWorkOSSession: !!sealedSession,
     });
 
     // Return success response
@@ -241,9 +299,15 @@ authRoutes.get('/me', async (c) => {
  * POST /auth/logout
  * Requires authentication (must be logged in to logout)
  *
+ * This endpoint:
+ * 1. Verifies the user is authenticated via JWT
+ * 2. Clears both auth_token and wos-session cookies
+ * 3. Uses the sealed WorkOS session to generate a proper logout URL
+ * 4. Returns the WorkOS logout URL so the frontend can redirect the user
+ *
  * Response includes:
  * - success: true
- * - workosLogoutUrl: URL to redirect user to clear WorkOS session
+ * - workosLogoutUrl: URL to redirect user to clear WorkOS SSO session (if available)
  */
 authRoutes.post('/logout', async (c) => {
   // Get and verify JWT token before allowing logout
@@ -258,8 +322,8 @@ authRoutes.post('/logout', async (c) => {
   const secret = c.env.WORKOS_COOKIE_PASSWORD;
 
   try {
-    const payload = await verifyJWT(token, secret);
-    const userId = payload.sub;
+    // Verify the JWT is valid (we don't need the payload, just verification)
+    await verifyJWT(token, secret);
 
     // Note: JWT-based auth doesn't have server-side session invalidation
     // The token will remain valid until expiration (24 hours)
@@ -290,21 +354,39 @@ authRoutes.post('/logout', async (c) => {
   });
 
   try {
-    // Generate WorkOS logout URL
-    // This will clear the WorkOS session and redirect back to your app
+    // Generate WorkOS logout URL using the sealed session
+    // WHY THIS CHANGE: Previously we tried to use sessionId directly, but WorkOS sessions
+    // are stored as encrypted "sealed sessions" that must be loaded first
     const workos = new WorkOS(c.env.WORKOS_CLIENT_SECRET, {
       apiHostname: 'api.workos.com',
     });
 
-    // Get the session ID from cookie if available (for WorkOS session invalidation)
-    const sessionCookie = getCookie(c, 'wos-session');
+    // Get the sealed session from cookie
+    const sealedSession = getCookie(c, 'wos-session');
 
-    // Generate the logout URL only if we have a valid session
+    // Generate the logout URL if we have a valid sealed session
     let workosLogoutUrl;
-    if (sessionCookie) {
-      workosLogoutUrl = workos.userManagement.getLogoutUrl({
-        sessionId: sessionCookie,
-      });
+    if (sealedSession) {
+      try {
+        // Use the loadSealedSession helper to decrypt and load the session
+        // This extracts the session ID needed for logout
+        const session = workos.userManagement.loadSealedSession({
+          sessionData: sealedSession,
+          cookiePassword: c.env.WORKOS_COOKIE_PASSWORD, // Must match login password
+        });
+
+        // Get the WorkOS logout URL
+        // This URL will:
+        // 1. Invalidate the WorkOS session server-side
+        // 2. Clear the SSO provider session (Google, etc.)
+        // 3. Redirect back to your app
+        // Frontend MUST redirect user to this URL to complete logout
+        workosLogoutUrl = await session.getLogoutUrl();
+      } catch (sessionError) {
+        console.error('Failed to load sealed session:', sessionError);
+        // Continue with logout even if session loading fails
+        // Local cookies are still cleared, but SSO session may persist
+      }
     }
 
     return c.json({
