@@ -261,8 +261,6 @@ authRoutes.post('/logout', async (c) => {
     const payload = await verifyJWT(token, secret);
     const userId = payload.sub;
 
-    console.log(`User ${userId} logging out`);
-
     // Note: JWT-based auth doesn't have server-side session invalidation
     // The token will remain valid until expiration (24 hours)
     // For immediate invalidation, you would need:
@@ -301,15 +299,18 @@ authRoutes.post('/logout', async (c) => {
     // Get the session ID from cookie if available (for WorkOS session invalidation)
     const sessionCookie = getCookie(c, 'wos-session');
 
-    // Generate the logout URL
-    const logoutUrl = workos.userManagement.getLogoutUrl({
-      sessionId: sessionCookie || '',
-    });
+    // Generate the logout URL only if we have a valid session
+    let workosLogoutUrl;
+    if (sessionCookie) {
+      workosLogoutUrl = workos.userManagement.getLogoutUrl({
+        sessionId: sessionCookie,
+      });
+    }
 
     return c.json({
       success: true,
       message: 'Logged out successfully',
-      workosLogoutUrl: logoutUrl,
+      ...(workosLogoutUrl && { workosLogoutUrl }),
     });
   } catch (error: any) {
     console.error('WorkOS logout URL generation failed:', error);
