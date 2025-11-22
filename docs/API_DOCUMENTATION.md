@@ -76,6 +76,34 @@ Cookie: auth_token=<jwt_token>
 
 ---
 
+### POST `/auth/logout`
+
+Logout user by clearing JWT cookie and providing WorkOS logout URL.
+
+**Headers:**
+```
+Cookie: auth_token=<jwt_token>
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Logged out successfully",
+  "workosLogoutUrl": "https://api.workos.com/user_management/sessions/logout?..."
+}
+```
+
+**Frontend Flow:**
+1. Call `POST /auth/logout` with credentials
+2. Backend clears JWT cookie
+3. Redirect user to `workosLogoutUrl` to clear WorkOS session
+4. WorkOS redirects back to your configured logout redirect URI
+
+**See:** [Complete Logout Flow Documentation](./LOGOUT_FLOW.md)
+
+---
+
 ## 👤 Avatar Management
 
 All avatar endpoints require authentication (JWT cookie).

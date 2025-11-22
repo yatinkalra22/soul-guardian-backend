@@ -42,10 +42,17 @@ authRoutes.post('/exchange', async (c) => {
                    last_name = '${user.lastName || ''}'`,
     });
 
-    // Create JWT with the WorkOS user ID (which is our database user ID)
-    const dbUserId = user.id;
+    // Create JWT with user information
     const jwtSecret = c.env.WORKOS_COOKIE_PASSWORD;
-    const token = await createJWT(dbUserId, jwtSecret);
+    const token = await createJWT(
+      {
+        userId: user.id,
+        email: user.email ?? undefined,
+        firstName: user.firstName ?? undefined,
+        lastName: user.lastName ?? undefined,
+      },
+      jwtSecret
+    );
 
     // Set JWT as secure HttpOnly cookie
     // Note: secure should be true in production (HTTPS), false in local dev (HTTP)
@@ -230,14 +237,50 @@ authRoutes.get('/me', async (c) => {
 });
 
 /**
- * Logout - clear authentication cookies
+ * Logout - clear authentication cookies and return WorkOS logout URL
+ * POST /auth/logout
+ * Requires authentication (must be logged in to logout)
+ *
+ * Response includes:
+ * - success: true
+ * - workosLogoutUrl: URL to redirect user to clear WorkOS session
  */
 authRoutes.post('/logout', async (c) => {
-  // Clear JWT cookie
+  // Get and verify JWT token before allowing logout
+  const token = getCookie(c, 'auth_token');
+
+  if (!token) {
+    return c.json({ error: 'Not authenticated - already logged out' }, 401);
+  }
+
+  // Verify the JWT is valid before logging out
+  const { verifyJWT } = await import('../../utils/jwt');
+  const secret = c.env.WORKOS_COOKIE_PASSWORD;
+
+  try {
+    const payload = await verifyJWT(token, secret);
+    const userId = payload.sub;
+
+    console.log(`User ${userId} logging out`);
+
+    // Note: JWT-based auth doesn't have server-side session invalidation
+    // The token will remain valid until expiration (24 hours)
+    // For immediate invalidation, you would need:
+    // 1. A token blacklist in database/cache
+    // 2. Or shorter token expiration times
+    // 3. Or switch to session-based auth
+
+  } catch (verifyError) {
+    // Token is invalid/expired - reject logout
+    console.log('Logout rejected: invalid/expired token');
+    return c.json({ error: 'Invalid or expired token' }, 401);
+  }
+
+  // Clear JWT cookie (our application session)
   setCookie(c, 'auth_token', '', {
     path: '/',
     httpOnly: true,
-    secure: true,
+    secure: c.req.url.startsWith('https://'),
     sameSite: 'Lax',
     maxAge: 0,
   });
@@ -248,7 +291,36 @@ authRoutes.post('/logout', async (c) => {
     maxAge: 0,
   });
 
-  return c.json({ success: true, message: 'Logged out successfully' });
+  try {
+    // Generate WorkOS logout URL
+    // This will clear the WorkOS session and redirect back to your app
+    const workos = new WorkOS(c.env.WORKOS_CLIENT_SECRET, {
+      apiHostname: 'api.workos.com',
+    });
+
+    // Get the session ID from cookie if available (for WorkOS session invalidation)
+    const sessionCookie = getCookie(c, 'wos-session');
+
+    // Generate the logout URL
+    const logoutUrl = workos.userManagement.getLogoutUrl({
+      sessionId: sessionCookie || '',
+    });
+
+    return c.json({
+      success: true,
+      message: 'Logged out successfully',
+      workosLogoutUrl: logoutUrl,
+    });
+  } catch (error: any) {
+    console.error('WorkOS logout URL generation failed:', error);
+
+    // Even if WorkOS fails, we cleared our cookies successfully
+    return c.json({
+      success: true,
+      message: 'Logged out successfully',
+      note: 'WorkOS logout unavailable, but local session cleared',
+    });
+  }
 });
 
 export default authRoutes;
