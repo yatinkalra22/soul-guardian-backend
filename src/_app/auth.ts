@@ -4,15 +4,50 @@ import { jwtVerify, createRemoteJWKSet } from 'jose';
 
 /**
  * JWT/Session verification middleware
- * Supports both:
- * 1. WorkOS access token in Authorization header (for API calls from frontend)
- * 2. WorkOS sealed session in cookie (for session-based auth)
+ * Supports three authentication methods (in priority order):
+ * 1. Custom JWT in auth_token cookie (HS256 signed, created during login)
+ * 2. WorkOS access token in Authorization header (RS256 signed, for API calls)
+ * 3. WorkOS sealed session in wos-session cookie (for session-based auth)
  */
 export const verify = async (c: any, next: any) => {
   const authHeader = c.req.header('Authorization');
   const sessionCookie = getCookie(c, 'wos-session');
+  const customAuthToken = getCookie(c, 'auth_token');
 
-  // Try access token first
+  // Try custom JWT cookie first (HS256 signed)
+  if (customAuthToken) {
+    console.log('Found auth_token cookie, attempting verification...');
+    try {
+      const { verifyJWT } = await import('../utils/jwt');
+      const secret = c.env.WORKOS_COOKIE_PASSWORD;
+      const payload = await verifyJWT(customAuthToken, secret);
+
+      // Extract user info from custom JWT (sub is the user ID)
+      const userId = payload.sub;
+      const userEmail = payload.email;
+      const userFirstName = payload.firstName;
+      const userLastName = payload.lastName;
+
+      // Set user context
+      c.set('jwt', {
+        payload: {
+          sub: userId,
+          email: userEmail,
+          firstName: userFirstName,
+          lastName: userLastName,
+        }
+      });
+
+      return await next();
+    } catch (error: any) {
+      console.error('Custom JWT verification failed:', error.message || error);
+      // Fall through to try other auth methods
+    }
+  } else {
+    console.log('No auth_token cookie found');
+  }
+
+  // Try WorkOS access token (RS256 signed)
   if (authHeader && authHeader.startsWith('Bearer ')) {
     const token = authHeader.substring(7);
 
@@ -74,17 +109,22 @@ export const verify = async (c: any, next: any) => {
         apiHostname: 'api.workos.com',
       });
 
-      // Verify and unseal the session
-      const result = await workos.userManagement.authenticateWithSessionCookie({
+      // Load and verify the sealed session
+      const session = workos.userManagement.loadSealedSession({
         sessionData: sessionCookie,
         cookiePassword: c.env.WORKOS_COOKIE_PASSWORD,
       });
 
-      if (!result.authenticated) {
-        throw new Error('Session authentication failed');
+      const authResult = await session.authenticate();
+
+      if (!authResult.authenticated) {
+        throw new Error(`Session authentication failed: ${authResult.reason}`);
       }
 
-      const { user } = result;
+      const user = authResult.user;
+      if (!user) {
+        throw new Error('No user found in authenticated session');
+      }
 
       // Ensure user exists in database (auto-create if not)
       await c.env.SMART_DB.executeQuery({
