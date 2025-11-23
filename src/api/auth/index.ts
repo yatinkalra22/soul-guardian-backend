@@ -3,6 +3,7 @@ import { getCookie, setCookie } from 'hono/cookie';
 import { WorkOS } from '@workos-inc/node';
 import { Env } from '../raindrop.gen';
 import { createJWT } from '../../utils/jwt';
+import { buildUserUpsertQuery } from '../../utils/sql';
 
 /**
  * Authentication Routes with WorkOS Session Management
@@ -76,12 +77,12 @@ authRoutes.post('/exchange', async (c) => {
 
     // Ensure user exists in database (upsert)
     await c.env.SMART_DB.executeQuery({
-      sqlQuery: `INSERT INTO users (id, email, first_name, last_name)
-                 VALUES ('${user.id}', '${user.email}', '${user.firstName || ''}', '${user.lastName || ''}')
-                 ON CONFLICT(id) DO UPDATE SET
-                   email = '${user.email}',
-                   first_name = '${user.firstName || ''}',
-                   last_name = '${user.lastName || ''}'`,
+      sqlQuery: buildUserUpsertQuery({
+        id: user.id,
+        email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName,
+      }),
     });
 
     // Create JWT with user information
@@ -168,12 +169,12 @@ authRoutes.post('/callback', async (c) => {
 
     // Store user in database (INSERT OR REPLACE to update if exists)
     await c.env.SMART_DB.executeQuery({
-      sqlQuery: `INSERT INTO users (id, email, first_name, last_name)
-                 VALUES ('${user.id}', '${user.email}', '${user.firstName || ''}', '${user.lastName || ''}')
-                 ON CONFLICT(id) DO UPDATE SET
-                   email = '${user.email}',
-                   first_name = '${user.firstName || ''}',
-                   last_name = '${user.lastName || ''}'`,
+      sqlQuery: buildUserUpsertQuery({
+        id: user.id,
+        email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName,
+      }),
     });
 
     // Return user info and access token to frontend
@@ -222,8 +223,12 @@ authRoutes.get('/callback', async (c) => {
 
     // Store user in database if not exists
     await c.env.SMART_DB.executeQuery({
-      sqlQuery: `INSERT OR IGNORE INTO users (id, email, first_name, last_name)
-                 VALUES ('${user.id}', '${user.email}', '${user.firstName || ''}', '${user.lastName || ''}')`,
+      sqlQuery: buildUserUpsertQuery({
+        id: user.id,
+        email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName,
+      }),
     });
 
     // Set secure HTTP-only cookie with sealed session (if present)

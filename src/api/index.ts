@@ -5,6 +5,7 @@ import { Env } from './raindrop.gen';
 import avatarRoutes from './avatar';
 import authRoutes from './auth';
 import { authMiddleware } from '../middleware/auth';
+import { buildSelectUserQuery } from '../utils/sql';
 
 // Create Hono app with middleware
 const app: any = new Hono<{ Bindings: Env }>();
@@ -58,7 +59,7 @@ app.get('/api/profile', authMiddleware, async (c: any) => {
   // Optionally fetch user details from database
   try {
     const result = await c.env.SMART_DB.executeQuery({
-      sqlQuery: `SELECT id, email, first_name, last_name FROM users WHERE id = '${userId}'`,
+      sqlQuery: buildSelectUserQuery(userId),
     });
 
     const users = JSON.parse(result.results);

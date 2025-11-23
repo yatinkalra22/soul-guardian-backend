@@ -1,6 +1,7 @@
 import { WorkOS } from '@workos-inc/node';
 import { getCookie } from 'hono/cookie';
 import { jwtVerify, createRemoteJWKSet } from 'jose';
+import { buildUserUpsertQuery } from '../utils/sql';
 
 /**
  * JWT/Session verification middleware
@@ -77,12 +78,12 @@ export const verify = async (c: any, next: any) => {
 
       // Ensure user exists in database (auto-create if not)
       await c.env.SMART_DB.executeQuery({
-        sqlQuery: `INSERT INTO users (id, email, first_name, last_name)
-                   VALUES ('${userId}', '${userEmail}', '${userFirstName || ''}', '${userLastName || ''}')
-                   ON CONFLICT(id) DO UPDATE SET
-                     email = '${userEmail}',
-                     first_name = '${userFirstName || ''}',
-                     last_name = '${userLastName || ''}'`,
+        sqlQuery: buildUserUpsertQuery({
+          id: userId,
+          email: userEmail,
+          firstName: userFirstName,
+          lastName: userLastName,
+        }),
       });
 
       // Set user context
@@ -128,12 +129,12 @@ export const verify = async (c: any, next: any) => {
 
       // Ensure user exists in database (auto-create if not)
       await c.env.SMART_DB.executeQuery({
-        sqlQuery: `INSERT INTO users (id, email, first_name, last_name)
-                   VALUES ('${user.id}', '${user.email}', '${user.firstName || ''}', '${user.lastName || ''}')
-                   ON CONFLICT(id) DO UPDATE SET
-                     email = '${user.email}',
-                     first_name = '${user.firstName || ''}',
-                     last_name = '${user.lastName || ''}'`,
+        sqlQuery: buildUserUpsertQuery({
+          id: user.id,
+          email: user.email,
+          firstName: user.firstName,
+          lastName: user.lastName,
+        }),
       });
 
       // Set user context

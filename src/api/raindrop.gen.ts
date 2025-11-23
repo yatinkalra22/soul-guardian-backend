@@ -6,6 +6,7 @@ export interface Env {
     app: App;
   };
   AI: Ai;
+  ALLOWED_ORIGINS: string;
   annotation: Annotation<Omit<MRNObject, 'type' | 'applicationName' | 'versionId'>>;
   AVATAR_BUCKET: SmartBucket;
   logger: Logger;
