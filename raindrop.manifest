@@ -1,29 +1,108 @@
-application "soul_guardian_backend" {
-  // === Databases ===
-  smartsql "smart_db" {}
+// Raindrop Manifest Template
+// This template shows examples of all available modules in Raindrop
+// Generated service handlers include Hono.js for HTTP services
+// Uncomment the modules you want to use in your application
 
-  // === Storage ===
-  smartbucket "avatar_bucket" {}
+application "soul-guardian-backend-app" {
+
+  // === Environment Variables ===
+  // Define environment variables for your application
+  env "PORT" {
+    default = "4000"
+  }
+
+  env "ENV" {
+    default = "DEV"
+  }
 
   // === Services ===
-  service "api" {
+  // HTTP services for external traffic
+  service "soul-guardian-backend-api" {
     visibility = "public"
-
     domain {
-      cname = "api-soul-guardian"
-    }
-
-    env "WORKOS_CLIENT_ID" {
-      secret = true
-    }
-    env "WORKOS_CLIENT_SECRET" {
-      secret = true
-    }
-    env "WORKOS_COOKIE_PASSWORD" {
-      secret = true
-    }
-    env "ALLOWED_ORIGINS" {
-      secret = false
+      cname = "soul-guardian-backend-app"
     }
   }
+
+  // === MCP Services ===
+  // Model Context Protocol services for AI integrations
+  // mcp_service "ai-assistant" {
+  //   visibility = "protected"
+  //   authorization_server = "https://your-auth-server.com"
+  // }
+
+  // === Actors ===
+  // Stateful actors: serverless objects with RPC, kv storage, cron and background processing
+  // actor "my-actor" {}
+
+  // === Observers ===
+  // Event-driven handlers that react to data changes
+  // observer "file-processor" {
+  //   source {
+  //     bucket = "my-bucket"  // ONLY buckets, NOT smartbuckets
+  //     // Additional source configuration
+  //   }
+  // }
+
+  // observer "queue-processor" {
+  //   source {
+  //     queue = "my-queue"
+  //   }
+  // }
+
+  // === Tasks ===
+  // Scheduled tasks for periodic operations
+  // task "daily-report" {
+  //   type = "cron"
+  //   cron = "0 2 * * *"  // Daily at 2 AM
+  // }
+
+  // task "heartbeat" {
+  //   type = "cron"
+  //   cron = "*/5 * * * *"  // Every 5 minutes
+  // }
+
+  // === Storage ===
+  // Bucket storage for files and objects
+  // bucket "file-storage" {
+  //   location_hint = "wnam"  // OPTIONAL
+  //   visibility = "protected"  // OPTIONAL (enables S3)
+  // }
+  // bucket "public-assets" {}
+
+  // === Databases ===
+  // SQL databases for structured data
+  // sql_database "app-db" {}
+
+  // SmartSQL for AI-powered natural language queries
+  smartsql "smart-db" {}
+
+  // === Key-Value Storage ===
+  // KV cache for fast key-value operations
+  // kv_cache "session-cache" {}
+
+  // === AI and Memory ===
+  // SmartBucket for document storage with AI-powered search
+  // smartbucket "document-store" {}
+
+  // SmartMemory for semantic memory and context management
+  // smartmemory "context-memory" {}
+
+  // === Message Queues ===
+  // Queue for asynchronous message processing
+  // queue "task-queue" {}
+
+  // queue "event-stream" {}
+
+  // === Module-specific Environment Variables ===
+  // You can bind environment variables to specific modules
+  // service "api" {
+  //   env "API_SECRET" {
+  //     secret = true
+  //   }
+  //
+  //   domain {
+  //     fqdn = "api.your-domain.com"
+  //   }
+  // }
 }

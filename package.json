@@ -1,45 +1,24 @@
 {
-  "name": "soul_guardian_backend",
+  "name": "soul-guardian-backend",
   "version": "1.0.0",
-  "private": true,
-  "description": "LiquidMetal AI app",
+  "description": "Soul Guardian Backend - Raindrop Application",
   "scripts": {
-    "start": "tsx src/server.ts",
-    "dev": "tsx watch src/server.ts",
-    "build": "raindrop build validate",
-    "deploy": "npm run build && raindrop build deploy --amend",
-    "deploy:fresh": "raindrop build deploy --start",
-    "deploy:setup-env": "./scripts/set-env.sh",
-    "deploy:stop": "raindrop build stop",
-    "deploy:status": "raindrop build status",
-    "deploy:logs": "raindrop logs tail",
-    "deploy:url": "raindrop build find",
-    "format": "prettier --write \"**/*.{ts,tsx,md}\"",
-    "lint": "eslint . --max-warnings=0",
-    "test": "vitest run",
-    "test:watch": "vitest"
+    "test": "vitest"
   },
+  "keywords": [
+    "raindrop",
+    "hono",
+    "api"
+  ],
+  "author": "",
+  "license": "ISC",
   "dependencies": {
     "@liquidmetal-ai/raindrop-framework": "^0.11.0",
-    "@modelcontextprotocol/sdk": "^1",
-    "@workos-inc/node": "^7.74.1",
-    "dotenv": "^17.2.3",
-    "hono": "^4",
-    "jose": "^6.1.2",
-    "kysely": "^0.27.2",
-    "kysely-d1": "^0.3.0",
-    "zod": "^3"
+    "hono": "^4.10.7"
   },
   "devDependencies": {
-    "@cloudflare/workers-types": "^4.20251119.0",
-    "@hono/node-server": "^1.19.6",
-    "miniflare": "^4.20251113.0",
-    "shx": "^0.4.0",
-    "ts-node": "^10",
-    "tsx": "^4.20.6",
-    "typescript": "^5.0.4",
-    "typescript-eslint": "^8.7.0",
-    "vitest": "^3.1.3",
-    "wrangler": "^4.49.0"
+    "@types/node": "^24.10.1",
+    "typescript": "^5.9.3",
+    "vitest": "^4.0.14"
   }
 }
